@@ -1,0 +1,308 @@
+---
+title: "Untitled"
+author: "Trần Thúy"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r}
+library(readxl)
+library(ggplot2)
+library(Metrics)
+library(tsutils)
+library(forecast)
+library(tseries)
+library(car)
+library(lmtest)
+library(urca)
+
+```
+```{r}
+BMI <- read_excel("D:/NEU/TOKT/Bắt buộc/Time series/BMI.xlsx", 
+                  sheet = "Sheet1")
+attach(BMI)
+Revenue <- ts(Revenue, start=c(2010,1), frequency = 4)
+t <- seq_along(Revenue)
+```
+```{r}
+Rev1 <- ts(Revenue[1:56], start=c(2010,1), frequency = 4)
+Rev2 <- ts(Revenue[57:60], start=c(2024,1), frequency = 4)
+time<- seq_along(Rev1)
+Data <- data.frame(time=time,Rev1=Rev1)
+time_pre <- data.frame(time=57:60)
+
+```
+
+```{r}
+#Linear-Linear
+reg1<- lm(Rev1~ time,data =Data )
+summary(reg1)
+rmse(Rev1,fitted(reg1))
+
+
+Rev_predict_linlin <- predict(reg1,newdata=time_pre)
+Rev_predict_linlin 
+rmse(Rev2,Rev_predict_linlin )
+```
+```{r}
+#Linear-Log 
+reg2<- lm(Rev1~ log(time),data =Data )
+summary(reg2)
+rmse(Rev1,fitted(reg2))
+
+
+Rev_predict_linlog <- predict(reg2,newdata=time_pre)
+Rev_predict_linlog  
+rmse(Rev2,Rev_predict_linlog )
+```
+```{r}
+#Log-Linear
+reg3<- lm(log(Rev1)~ time,data =Data )
+summary(reg3)
+rmse(Rev1,exp(fitted(reg3)))
+
+
+Rev_predict_loglin <- exp(predict(reg3,newdata=time_pre))
+Rev_predict_loglin 
+rmse(Rev2,Rev_predict_loglin )
+```
+```{r}
+#Log-Log
+reg4<- lm(log(Rev1)~ log(time),data =Data )
+summary(reg4)
+rmse(Rev1,exp(fitted(reg4)))
+
+
+Rev_predict_loglog <- exp(predict(reg4,newdata=time_pre))
+Rev_predict_loglog 
+rmse(Rev2,Rev_predict_loglog )
+```
+```{r}
+#Xu the bac 2 
+reg5 <- lm(Rev1 ~ time + I(time^2) ,data=Data)
+summary(reg5)
+rmse(Rev1,fitted(reg5))
+
+
+Rev_pre_2 <- predict(reg5,newdata=time_pre)
+Rev_pre_2
+rmse(Rev2,Rev_pre_2)
+
+time_pre <- data.frame(t=61:64)
+reg_final <- lm(Revenue ~ t + I(t^2) )
+summary(reg_final)
+Rev_pre_final <- predict(reg_final,newdata=time_pre)
+Rev_pre_final
+
+```
+
+```{r}
+s2<- c(rep(c(0,1,0,0),15))[1:56]
+s3<- c(rep(c(0,0,1,0),15))[1:56]
+s4<- c(rep(c(0,0,0,1),15))[1:56]
+
+time_pre_1 <- data.frame(
+  time = 57:60,
+  s2 = ifelse(57:60 %% 4 == 2, 1, 0),
+  s3 = ifelse(57:60 %% 4 == 3, 1, 0),
+  s4 = ifelse(57:60 %% 4 == 0, 1, 0))
+```
+
+
+```{r}
+##Trend+additive
+reg6<-lm(Rev1 ~time +s2+s3+s4)
+summary(reg6)
+rmse(Rev1,fitted(reg6))
+
+
+Rev_predict_1 <- predict(reg6,newdata=time_pre_1)
+Rev_predict_1 
+rmse(Rev2,Rev_predict_1 )
+```
+
+
+```{r}
+##Trend+Multiplicative
+reg7<-lm(Rev1~time + I(s2*time) + I(s3*time) + I(s4*time))
+summary(reg7)
+rmse(Rev1,fitted(reg7))
+
+
+Rev_predict_2 <- predict(reg7,newdata=time_pre_1)
+Rev_predict_2 
+rmse(Rev2,Rev_predict_2 )
+```
+```{r}
+#Trend +Kết hợp 
+reg8<-lm(Rev1 ~time + s2*time +s3*time +s4*time)
+summary(reg8)
+rmse(Rev1,fitted(reg8))
+
+
+Rev_predict_3 <- predict(reg8,newdata=time_pre_1)
+Rev_predict_3 
+rmse(Rev2,Rev_predict_3 )
+```
+```{r}
+#Xu the khong tuyen tinh + mua vu dang cong 
+reg9<- lm(log(Rev1) ~time +s2+s3+s4)
+summary(reg9)
+rmse(Rev1,exp(fitted(reg9)))
+
+
+Rev_predict_4 <- exp(predict(reg9,newdata=time_pre_1))
+Rev_predict_4 
+rmse(Rev2,Rev_predict_4 )
+```
+```{r}
+#Xu the khong tuyen tinh + mua vu dang nhan 
+reg10<- lm(log(Rev1) ~time +I(s2*time)+I(s3*time)+I(s4*time))
+summary(reg10)
+rmse(Rev1,exp(fitted(reg10)))
+
+
+Rev_predict_5 <- exp(predict(reg10,newdata=time_pre_1))
+Rev_predict_5 
+rmse(Rev2,Rev_predict_5 )
+```
+```{r}
+#Xu the khong tuyen tinh + mua vu dang ket hop 
+reg11<- lm(log(Rev1) ~time +s2*time+s3*time+s4*time)
+summary(reg11)
+rmse(Rev1,exp(fitted(reg11)))
+Rev_predict_6 <- exp(predict(reg11,newdata=time_pre_1))
+Rev_predict_6 
+rmse(Rev2,Rev_predict_6 )
+```
+```{r}
+hw.rev.a <-HoltWinters(Rev1, seasonal = "a")
+hw.rev.a
+plot.ts(Rev1)
+lines(fitted(hw.rev.a)[,1],col="red")
+rmse(Rev1, fitted(hw.rev.a)[,1])
+
+Re_predict_hw_a <- c(1257331.412,1307600.256,1302593.699,1377627.281)
+rmse (Rev2,Re_predict_hw_a)
+accuracy(Re_predict_hw_a, Rev2)["Test set", "RMSE"]
+
+
+
+```
+```{r}
+hw.rev.m <-HoltWinters(Rev1, seasonal = "m")
+hw.rev.m
+plot.ts(Rev1)
+lines(fitted(hw.rev.m)[,1],col="red")
+rmse(Rev1, fitted(hw.rev.m)[,1])
+
+Re_predict_hw_m <- c(1136054.124,	1222565.229,	1192969.074,	1326475.529)
+rmse (Rev2,Re_predict_hw_m)
+accuracy(Re_predict_hw_m, Rev2)["Test set", "RMSE"]
+```
+
+
+```{r}
+
+bmi <- read_excel("D:/NEU/TOKT/Bắt buộc/Time series/Data_bt/BMI.xlsx", 
+    sheet = "Sheet3")
+names(bmi) <- c ("Date","Close","Log_return")
+attach(bmi)
+act_data<- read_excel("D:/NEU/TOKT/Bắt buộc/Time series/Data_bt/Data .xlsx", 
+    sheet = "Sheet2")
+attach(act_data)
+plot.ts(Close)
+plot.ts(diff(Close))
+plot.ts(Log_return)
+plot.ts(diff(Log_return))
+```
+
+```{r}
+time<- seq_along(Close)
+Close_detrend <- resid(lm(Close~time))
+plot.ts(Close_detrend)
+Log_return_detrend <- resid(lm(Log_return~time))
+plot.ts(Log_return_detrend)
+Log_return<- Log_return[-1]
+```
+
+```{r}
+summary(ur.df(Close,type="trend",selectlags="AIC"))
+
+summary(ur.df(Close,type="drift",selectlags="AIC"))
+
+summary(ur.df(diff(Close),type="drift",selectlags="AIC"))
+
+```
+
+```{r}
+summary(ur.df(Log_return,type="trend"))
+summary(ur.df(Log_return,type="drift"))
+summary(ur.df(Log_return,type="none"))
+```
+
+```{r}
+#Close -> khong trend, có nghiệm đơn vị , khong dung . delta(Close) -> khong co nghiem don vi,dung 
+#->Close: Dừng sai phân 
+#Lag_return -> Dừng 
+
+```
+
+```{r}
+acf(diff(Close))
+pacf(diff(Close))
+##MA(1),AR(1)
+```
+
+```{r}
+acf(Log_return)
+pacf(Log_return)
+#->MA(1),AR(1)
+```
+
+```{r}
+reg.Close.arima111 <-Arima(Close,order=c(1,1,1),include.constant=TRUE)
+summary(reg.Close.arima111)
+reg.Close.arima011 <-Arima(Close,order=c(0,1,1), include.constant=FALSE)
+summary(reg.Close.arima011)
+```
+
+```{r}
+reg.log.arima101 <- Arima(Log_return,order=c(1,0,1),include.constant=FALSE)
+summary(reg.log.arima101)
+reg.log.arima001 <- Arima(Log_return,order=c(0,0,1),include.constant=FALSE)
+summary(reg.log.arima001)
+```
+
+```{r}
+autoplot(reg.Close.arima011)
+autoplot(reg.Close.arima111)
+autoplot(reg.log.arima101)
+autoplot(reg.log.arima001)
+```
+
+```{r}
+checkresiduals(reg.Close.arima111)
+checkresiduals(reg.Close.arima011)
+checkresiduals(reg.log.arima101)
+checkresiduals(reg.log.arima001)
+```
+
+```{r}
+Close_forecast_1 <- forecast(reg.Close.arima111,h=10)
+Close_forecast_1
+rmse(BMI_act,Close_forecast_1$mean)
+Close_forecast_2 <- forecast(reg.Close.arima011,h=10)
+Close_forecast_2
+rmse(BMI_act,Close_forecast_2$mean)
+
+
+Log_forecast_1 <- forecast(reg.log.arima101,h=10)
+Log_forecast_1
+rmse(rBMI_act,Close_forecast_1$mean)
+Log_forecast_2 <- forecast(reg.log.arima001,h=10)
+Log_forecast_2
+rmse(rBMI_act,Close_forecast_2$mean)
+```
+
+
