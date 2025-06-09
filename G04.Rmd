@@ -1,0 +1,89 @@
+---
+title: "Untitled"
+author: "Trần Thúy"
+date: "`r Sys.Date()`"
+output: word_document
+---
+```{r}
+library(ggplot2)
+library(tseries)
+library(Metrics)
+library(car)
+library(lmtest)
+library(urca)
+library(forecast)
+library(vars)
+```
+```{r}
+library(readxl)
+
+Data_G04 <- read_excel("D:/NEU/TOKT/Bắt buộc/Time series/Data .xlsx")
+attach(Data_G04)
+act_data <-read_excel("D:/NEU/TOKT/Bắt buộc/Time series/Data .xlsx", 
+    sheet = "Sheet2")
+attach(act_data)
+Log_return <- read_excel("D:/NEU/TOKT/Bắt buộc/Time series/Log-return.xlsx")
+attach(Log_return)
+```
+```{r}
+summary(ur.df(rPort,type="trend"))
+summary(ur.df(rPort,type="drift"))
+summary(ur.df(rPort,type="none"))
+acf(rPort)
+pacf(rPort)
+Box.test(rPort, type = "Box-Pierce")
+reg.arma11<-arma(rPort,order=c(1,1),include.intercept=FALSE)
+summary(reg.arma11)
+reg.arma10<-arma(rPort,order=c(1,0),include.intercept=FALSE)
+summary(reg.arma10)
+
+```
+
+```{r}
+#Kiểm đinh đồng tích hợp 
+summary(ca.jo(data.frame(pELC,pVTC,pBVH,pBMI),type = "trace"))
+
+
+```
+#Mo hinh VAR
+```{r}
+data1 <- data.frame(rELC,rVTC,rBVH,rBMI)
+data1 <- na.omit(data1)
+VARselect(data1) ##Bậc 1 của VAR
+```
+```{r}
+var_model<-VAR(data1,p=1,type = "const")
+summary(var_model)
+```
+```{r}
+serial.test(var_model)
+```
+```{r}
+forecast1 <- predict(var_model)
+par(mar = c(4, 4, 2, 2))
+plot(forecast1)
+```
+```{r}
+rmse(rELC_act,forecast1$fcst$rELC)
+rmse(rVTC_act,forecast1$fcst$rVTC)
+rmse(rBVH_act,forecast1$fcst$rBVH)
+rmse(rBMI_act,forecast1$fcst$rBMI)
+```
+
+
+#Hàm phản ứng (Impulse Response)
+```{r}
+irf(var_model)
+```
+```{r}
+plot(irf(var_model))
+```
+#phân rã phương sai
+```{r}
+fevd(var_model)
+```
+
+```{r}
+par(mar = c(2,2,3,2))
+plot(fevd(var_model))
+```
